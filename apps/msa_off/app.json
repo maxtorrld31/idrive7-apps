@@ -1,0 +1,31 @@
+{
+  "id": "msa_off",
+  "title": "MSA-OFF",
+  "description": "MSA-OFF for BMW MGU ID7 (diesel DDE9). One checkbox: permanently disable the automatic start-stop (MSA2) via the car's own diagnostic link, exactly like ISTA's service function: UDS routine 31 01 F5 29 on the DDE (0x12), verified by read-back 22 F5 29. Read-only until the checkbox is pressed twice (arm + confirm). Re-enabling stays with ISTA (service function Activate MSA) on purpose.",
+  "version": "0.1.0",
+  "vendor": "custom",
+  "loggingId": "OAA1",
+  "iconGlyph": "MSA",
+  "signals": {
+    "com.harman.infotainment.systemfunctions.tasu.tasu.InternalTasu": {
+      "_instances": "SystemFunctionsInternalTasuInst1",
+      "_methods": [
+        "sendTasuRequest"
+      ],
+      "_broadcasts": [
+        "sendTasuResponse"
+      ]
+    }
+  },
+  "screens": [
+    {
+      "name": "MAIN",
+      "kind": "menu",
+      "title": "MSA-OFF",
+      "items": [
+        ["checkbox", "CB_DISABLE", "Отключить MSA / Disable MSA"],
+        ["scroll", "L_STATUS", "Status"]
+      ]
+    }
+  ]
+}
