@@ -69,7 +69,9 @@ const appTitles = () => listApps().reduce((o, id) => { try { o[id] = JSON.parse(
 let appId = args[0];
 if (!appId || listApps().indexOf(appId) < 0) { console.error('usage: node kit/tools/emu.js <app> [--port 8077] [--bg file.png] [--no-touch]\napps: ' + listApps().join(' ')); process.exit(2); }
 // (a short path: Unix socket paths are limited to ~104 bytes)
-const SOCK = path.join(os.tmpdir(), 'mgu-emu-' + process.pid + '.sock');
+const SOCK = process.platform === 'win32'
+    ? '\\\\.\\pipe\\mgu-emu-' + process.pid   // Windows: AF_UNIX bind gets EACCES; a named pipe works
+    : path.join(os.tmpdir(), 'mgu-emu-' + process.pid + '.sock');
 const MAX_MSG = 24 << 20;                       // a bigger message ends the connection (PROTOCOL.md "Framing")
 const PAGE_BEHIND = 8 << 20, PAGE_GONE = 64 << 20;   // bytes queued to a page: frames wait for it / it is closed
 
@@ -618,7 +620,7 @@ function build() {
     App.waiting = null;
     setStatus('building');
     let outText = '';
-    const p = App.building = spawn('python3', [path.join(ROOT, 'kit', 'tools', 'build.py'), id], { cwd: ROOT });
+    const p = App.building = spawn(process.platform === 'win32' ? 'python' : 'python3', [path.join(ROOT, 'kit', 'tools', 'build.py'), id], { cwd: ROOT });
     p.stdout.on('data', (d) => { outText += d; });
     p.stderr.on('data', (d) => { outText += d; });
     p.on('error', (e) => { outText += String(e); });
@@ -626,6 +628,13 @@ function build() {
         App.building = null;
         if (App.again || id !== appId) { App.again = false; build(); return; }
         if (code !== 0) {
+            // win32/no-SDK: a staged dist from build.py --preview-only keeps the emulator usable
+            if (fs.existsSync(path.join(ROOT, 'dist', id, 'source', 'javascript', 'app.js'))) {
+                appLog('warn', 'emu: build failed, using the existing staged ' + id + ' (offline preview)\n' + outText);
+                start(id);
+                setTimeout(() => { if (!App.building && !App.loading) unlockBuild(); }, 15000);
+                return;
+            }
             unlockBuild();
             appLog('error', 'emu: build failed\n' + outText);
             // a newly chosen app that does not build: the one running stays the current app (watched, restarted)
